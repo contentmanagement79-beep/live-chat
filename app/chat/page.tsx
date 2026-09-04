@@ -96,61 +96,33 @@ export default function ChatDashboardPage() {
 
   const startConversation = async (otherUserId: string) => {
     if (!currentUserId) return;
+    
     setMessage('');
-    setStartingChatId(otherUserId);
+    setStartingChatId(otherUserId); // UI-তে বাটনের লোডিং স্পিনার শুরু করার জন্য
 
-    const { data: myRows, error: myRowsError } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', currentUserId);
+    try {
+      // 🚀 ম্যাজিক এখানে! ফ্রন্টএন্ডের বদলে ডেটাবেস নিজেই সব চেক করে আইডি দিয়ে দিবে
+      const { data: conversationId, error } = await supabase.rpc(
+        'get_or_create_direct_conversation',
+        { target_user_id: otherUserId }
+      );
 
-    if (myRowsError) {
-      setMessage('Could not load conversations. Please try again.');
-      setStartingChatId(null);
-      return;
-    }
-
-    const myConversationIds = (myRows ?? []).map((row) => row.conversation_id);
-
-    if (myConversationIds.length > 0) {
-      const { data: sharedRows } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', otherUserId)
-        .in('conversation_id', myConversationIds);
-
-      if (sharedRows && sharedRows.length > 0) {
-        router.push(`/chat/${sharedRows[0].conversation_id}`);
+      if (error) {
+        console.error('Error starting chat:', error.message);
+        setMessage('Could not start conversation. Please try again.');
+        setStartingChatId(null);
         return;
       }
-    }
 
-    const { data: conversation, error: conversationError } = await supabase
-      .from('conversations')
-      .insert({ is_group: false })
-      .select('id')
-      .single();
-
-    if (conversationError || !conversation) {
-      setMessage('Could not create a new chat. Please try again.');
+      if (conversationId) {
+        // চ্যাট আইডি পেয়ে গেলে সোজা চ্যাট পেজে রিডাইরেক্ট
+        router.push(`/chat/${conversationId}`);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setMessage('An unexpected error occurred.');
       setStartingChatId(null);
-      return;
     }
-
-    const { error: participantError } = await supabase
-      .from('conversation_participants')
-      .insert([
-        { conversation_id: conversation.id, user_id: currentUserId },
-        { conversation_id: conversation.id, user_id: otherUserId },
-      ]);
-
-    if (participantError) {
-      setMessage('Chat was created but participants could not be added.');
-      setStartingChatId(null);
-      return;
-    }
-
-    router.push(`/chat/${conversation.id}`);
   };
 
   const logout = async () => {
