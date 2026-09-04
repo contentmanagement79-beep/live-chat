@@ -1,9 +1,11 @@
-// app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { motion } from 'framer-motion';
+import { User, Lock, AlertCircle, Loader2, LogIn } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function LoginPage() {
 
     let emailToUse = identifier;
 
+    // যদি ইউজারনেম দিয়ে লগইন করতে চায়
     if (!identifier.includes('@')) {
       const { data: profile, error: lookupError } = await supabase
         .from('profiles')
@@ -34,6 +37,7 @@ export default function LoginPage() {
       emailToUse = profile.email;
     }
 
+    // Supabase লগইন প্রসেস
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: emailToUse,
       password,
@@ -50,137 +54,123 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="wrap">
-      <div className="aurora" />
-      <form onSubmit={handleLogin} className="card">
-        <h1>Welcome Back</h1>
+    <main className="relative min-h-screen flex items-center justify-center p-4 md:p-8 overflow-hidden bg-[#05050f] text-white font-sans">
+      {/* Animated Aurora Background */}
+      <div className="aurora-bg" />
 
-        {error && <p className="error">{error}</p>}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative z-10 w-full max-w-md bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-8 md:p-10 rounded-[2rem] shadow-[0_0_40px_rgba(0,0,0,0.5)]"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-4 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+            <LogIn className="w-6 h-6 ml-1" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-white/90">Welcome Back</h1>
+          <p className="text-white/50 text-sm mt-2 text-center">
+            Sign in to continue your conversations.
+          </p>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Email or Username"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <form onSubmit={handleLogin} className="space-y-4">
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: 'auto' }} 
+              className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-400 p-3.5 rounded-xl text-sm"
+            >
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <p>{error}</p>
+            </motion.div>
+          )}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+          <div className="relative group">
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-indigo-400 transition-colors" />
+            <input
+              type="text"
+              placeholder="Email or Username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-12 py-3.5 text-sm md:text-base text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
+            />
+          </div>
 
-        <p className="switch">
-          Don&apos;t have an account? <a href="/signup">Sign up</a>
+          <div className="relative group">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-indigo-400 transition-colors" />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-12 py-3.5 text-sm md:text-base text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all duration-300 mt-2 shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)]"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Logging in...
+              </>
+            ) : (
+              'Login'
+            )}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-white/50 mt-8">
+          Don't have an account?{' '}
+          <Link href="/signup" className="text-indigo-400 font-medium hover:text-indigo-300 transition-colors hover:underline underline-offset-4">
+            Sign up here
+          </Link>
         </p>
-      </form>
+      </motion.div>
 
+      {/* Styles for Aurora Background */}
       <style jsx>{`
-        .wrap {
-          position: relative;
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-          background: #05050f;
+        .aurora-bg {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
           overflow: hidden;
         }
-        .aurora {
-          position: fixed;
-          inset: 0;
-          z-index: -1;
-        }
-        .aurora::before,
-        .aurora::after {
+        .aurora-bg::before,
+        .aurora-bg::after {
           content: '';
           position: absolute;
-          width: 60vw;
-          height: 60vw;
+          width: 50vw;
+          height: 50vw;
           border-radius: 50%;
-          filter: blur(120px);
+          filter: blur(140px);
           opacity: 0.35;
-          animation: float 18s ease-in-out infinite;
+          animation: float 20s ease-in-out infinite;
         }
-        .aurora::before {
-          background: radial-gradient(circle, #6366f1, transparent 70%);
-          top: -20%;
+        .aurora-bg::before {
+          background: radial-gradient(circle, rgba(99,102,241,0.8), transparent 60%);
+          top: -10%;
           left: -10%;
         }
-        .aurora::after {
-          background: radial-gradient(circle, #a855f7, transparent 70%);
-          bottom: -20%;
+        .aurora-bg::after {
+          background: radial-gradient(circle, rgba(168,85,247,0.8), transparent 60%);
+          bottom: -10%;
           right: -10%;
-          animation-delay: 6s;
+          animation-delay: -10s;
+          animation-direction: reverse;
         }
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(5%, 5%) scale(1.1); }
+          33% { transform: translate(5%, 10%) scale(1.1); }
+          66% { transform: translate(-5%, 5%) scale(0.9); }
         }
-        .card {
-          width: 100%;
-          max-width: 380px;
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 20px;
-          padding: 32px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        }
-        h1 {
-          color: #fff;
-          font-size: 24px;
-          text-align: center;
-          margin-bottom: 24px;
-        }
-        .error {
-          color: #f87171;
-          font-size: 13px;
-          text-align: center;
-          margin-bottom: 16px;
-        }
-        input {
-          width: 100%;
-          margin-bottom: 12px;
-          padding: 12px 16px;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.1);
-          border: none;
-          color: #fff;
-          font-size: 14px;
-          outline: none;
-        }
-        input::placeholder { color: rgba(255,255,255,0.4); }
-        input:focus { box-shadow: 0 0 0 2px #818cf8; }
-        button {
-          width: 100%;
-          margin-top: 8px;
-          padding: 12px;
-          border-radius: 12px;
-          background: #6366f1;
-          border: none;
-          color: #fff;
-          font-weight: 600;
-          font-size: 15px;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        button:hover { background: #818cf8; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .switch {
-          text-align: center;
-          font-size: 13px;
-          color: rgba(255,255,255,0.5);
-          margin-top: 16px;
-        }
-        .switch a { color: #a5b4fc; text-decoration: underline; }
       `}</style>
-    </div>
+    </main>
   );
 }
