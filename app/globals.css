@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ব্রাউজারের ডিফল্ট ব্যাকগ্রাউন্ড কালার ডার্ক করার জন্য */
+body {
+  background-color: #05050f;
+  color: white;
+}
