@@ -13,30 +13,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          backgroundColor: '#05050f',
+          color: '#ffffff',
+          fontFamily: 'Segoe UI, system-ui, sans-serif',
+          overflowX: 'hidden',
+        }}
+      >
         {children}
-        <style jsx global>{`
-          * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            scroll-behavior: smooth;
-          }
-          html,
-          body {
-            background-color: #05050f;
-            color: white;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            overflow-x: hidden;
-          }
-          ::-webkit-scrollbar {
-            width: 8px;
-          }
-          ::-webkit-scrollbar-thumb {
-            background: rgba(129, 140, 248, 0.4);
-            border-radius: 8px;
-          }
-        `}</style>
       </body>
     </html>
   );
