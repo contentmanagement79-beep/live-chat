@@ -53,14 +53,14 @@ export default function SearchPage() {
     return () => clearTimeout(timeout);
   }, [query, currentUserId]);
 
-const startConversation = async (otherUserId: string) => {
+  const startConversation = async (otherUserId: string) => {
     if (!currentUserId) return;
     
     // UI-তে বাটনের লোডিং স্পিনার শুরু করার জন্য
     setStartingChatId(otherUserId); 
 
     try {
-      // 🚀 ম্যাজিক এখানে! ফ্রন্টএন্ডের বদলে ডেটাবেস নিজেই সব চেক করে আইডি দিয়ে দিবে
+      // 🚀 ম্যাজিক এখানে! ফ্রন্টএন্ডের বদলে ডেটাবেস নিজেই সব চেক করে আইডি দিয়ে দিবে
       const { data: conversationId, error } = await supabase.rpc(
         'get_or_create_direct_conversation',
         { target_user_id: otherUserId }
@@ -73,21 +73,13 @@ const startConversation = async (otherUserId: string) => {
       }
 
       if (conversationId) {
-        // চ্যাট আইডি পেয়ে গেলে সোজা চ্যাট পেজে রিডাইরেক্ট
+        // চ্যাট আইডি পেয়ে গেলে সোজা চ্যাট পেজে রিডাইরেক্ট
         router.push(`/chat/${conversationId}`);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
       setStartingChatId(null);
     }
-  };
-
-    await supabase.from('conversation_participants').insert([
-      { conversation_id: newConvo.id, user_id: currentUserId },
-      { conversation_id: newConvo.id, user_id: otherUserId },
-    ]);
-
-    router.push(`/chat/${newConvo.id}`);
   };
 
   // Framer Motion Variants
