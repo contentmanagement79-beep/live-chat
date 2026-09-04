@@ -1,10 +1,11 @@
-// app/chat/page.tsx
 'use client';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, LogOut, MessageSquare, Clock, ArrowRight, UserX, Loader2, Sparkles } from 'lucide-react';
 
 type Profile = {
   id: string;
@@ -26,6 +27,10 @@ export default function ChatDashboardPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  
+  // নতুন লোডিং স্টেট
+  const [isSearching, setIsSearching] = useState(false);
+  const [startingChatId, setStartingChatId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -66,12 +71,15 @@ export default function ChatDashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    const findUsers = async () => {
-      if (!search.trim() || !currentUserId) {
-        setResults([]);
-        return;
-      }
+    if (!search.trim() || !currentUserId) {
+      setResults([]);
+      setIsSearching(false);
+      return;
+    }
 
+    setIsSearching(true);
+
+    const timer = window.setTimeout(async () => {
       const { data } = await supabase
         .from('profiles')
         .select('id, username, is_online')
@@ -80,15 +88,16 @@ export default function ChatDashboardPage() {
         .limit(10);
 
       setResults(data ?? []);
-    };
+      setIsSearching(false);
+    }, 400);
 
-    const timer = window.setTimeout(findUsers, 300);
     return () => window.clearTimeout(timer);
   }, [search, currentUserId]);
 
   const startConversation = async (otherUserId: string) => {
     if (!currentUserId) return;
     setMessage('');
+    setStartingChatId(otherUserId);
 
     const { data: myRows, error: myRowsError } = await supabase
       .from('conversation_participants')
@@ -97,6 +106,7 @@ export default function ChatDashboardPage() {
 
     if (myRowsError) {
       setMessage('Could not load conversations. Please try again.');
+      setStartingChatId(null);
       return;
     }
 
@@ -123,6 +133,7 @@ export default function ChatDashboardPage() {
 
     if (conversationError || !conversation) {
       setMessage('Could not create a new chat. Please try again.');
+      setStartingChatId(null);
       return;
     }
 
@@ -134,7 +145,8 @@ export default function ChatDashboardPage() {
       ]);
 
     if (participantError) {
-      setMessage('Chat was created but participants could not be added. Check Supabase RLS policies.');
+      setMessage('Chat was created but participants could not be added.');
+      setStartingChatId(null);
       return;
     }
 
@@ -146,148 +158,242 @@ export default function ChatDashboardPage() {
     router.replace('/');
   };
 
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
+  };
+
   if (loading) {
     return (
-      <div className="loadingPage">
-        <div className="loader" />
-        <p>Loading NovaChat...</p>
-        <style jsx>{`
-          .loadingPage { min-height: 100vh; display: grid; place-content: center; gap: 14px; background: #05050f; color: #c7d2fe; text-align: center; }
-          .loader { width: 36px; height: 36px; margin: auto; border: 3px solid rgba(129, 140, 248, 0.2); border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
-          @keyframes spin { to { transform: rotate(360deg); } }
-        `}</style>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#05050f] text-indigo-200">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
+        <motion.p 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          transition={{ repeat: Infinity, duration: 1.5, repeatType: "reverse" }}
+          className="text-sm font-medium tracking-widest uppercase"
+        >
+          Loading NovaChat
+        </motion.p>
       </div>
     );
   }
 
   return (
-    <main className="page">
-      <div className="aurora" />
+    <main className="relative min-h-screen pb-16 bg-[#05050f] text-white font-sans overflow-hidden">
+      {/* Animated Aurora Background */}
+      <div className="aurora-bg" />
 
-      <header className="header">
-        <Link href="/" className="brand">💬 NovaChat</Link>
-        <div className="rightHeader">
-          <span className="welcome">Hi, @{username}</span>
-          <button onClick={logout} className="logout">Log out</button>
+      {/* Header */}
+      <header className="relative z-10 max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
+          <MessageSquare className="w-6 h-6 text-indigo-500" />
+          <span>Nova<span className="text-indigo-400">Chat</span></span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <span className="hidden sm:block text-sm text-white/60 font-medium">
+            Hi, <span className="text-white">@{username}</span>
+          </span>
+          <button 
+            onClick={logout} 
+            className="flex items-center gap-2 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-white/80 hover:text-red-400 px-4 py-2 rounded-xl transition-all duration-300 text-sm font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:block">Log out</span>
+          </button>
         </div>
       </header>
 
-      <section className="hero">
-        <span className="status"><i /> You are online</span>
-        <h1>Your messages.<br /><span>Your universe.</span></h1>
-        <p>Search a username below to start a live conversation instantly.</p>
+      {/* Hero Section */}
+      <section className="relative z-10 max-w-3xl mx-auto px-6 mt-12 mb-10 text-center">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-indigo-300 mb-6">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            You are online
+          </span>
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight">
+            Your messages.<br />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 drop-shadow-lg">
+              Your universe.
+            </span>
+          </h1>
+          <p className="text-white/60 text-base md:text-lg">
+            Search a username below to start a live conversation instantly.
+          </p>
+        </motion.div>
       </section>
 
-      <section className="panel">
-        <label htmlFor="user-search">Find someone</label>
-        <div className="searchBox">
-          <span>⌕</span>
-          <input
-            id="user-search"
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by username..."
-          />
-        </div>
-
-        {message && <p className="message">{message}</p>}
-
-        {search && (
-          <div className="searchResults">
-            {results.map((user) => (
-              <button key={user.id} className="user" onClick={() => startConversation(user.id)}>
-                <span className="avatar">{user.username.slice(0, 1).toUpperCase()}</span>
-                <span className="userInfo">
-                  <strong>@{user.username}</strong>
-                  <small><i className={user.is_online ? 'onlineDot' : 'offlineDot'} /> {user.is_online ? 'Online' : 'Offline'}</small>
-                </span>
-                <span className="start">Chat →</span>
-              </button>
-            ))}
-            {results.length === 0 && <p className="empty">No user found with this username.</p>}
+      {/* Main Content Area */}
+      <div className="relative z-10 max-w-2xl mx-auto px-4 space-y-8">
+        
+        {/* Search Panel */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 shadow-2xl"
+        >
+          <label htmlFor="user-search" className="block text-sm font-semibold text-indigo-200 mb-3 ml-1">
+            Find someone
+          </label>
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              {isSearching ? (
+                <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+              ) : (
+                <Search className="w-5 h-5 text-white/40 group-focus-within:text-indigo-400 transition-colors" />
+              )}
+            </div>
+            <input
+              id="user-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by username..."
+              className="w-full bg-black/20 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
+            />
           </div>
-        )}
-      </section>
 
-      <section className="conversations">
-        <div className="sectionTitle">
-          <h2>Your conversations</h2>
-          <Link href="/search">Open full search →</Link>
-        </div>
+          {message && <p className="text-red-400 text-sm mt-3 ml-1">{message}</p>}
 
-        {conversations.length === 0 ? (
-          <div className="emptyCard">
-            <div>✦</div>
-            <h3>No conversations yet</h3>
-            <p>Find someone by username and send the first message.</p>
+          <AnimatePresence>
+            {search && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="mt-4 overflow-hidden border border-white/10 rounded-2xl bg-black/10"
+              >
+                {results.length > 0 ? (
+                  <ul className="divide-y divide-white/5">
+                    {results.map((user) => (
+                      <li key={user.id}>
+                        <button 
+                          onClick={() => startConversation(user.id)}
+                          disabled={startingChatId === user.id}
+                          className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors text-left group"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold shadow-inner border border-white/10 shrink-0">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white/90 group-hover:text-white">{user.username}</h4>
+                            <div className="flex items-center gap-1.5 text-xs text-white/40 mt-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${user.is_online ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                              {user.is_online ? 'Online' : 'Offline'}
+                            </div>
+                          </div>
+                          {startingChatId === user.id ? (
+                            <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                          ) : (
+                            <ArrowRight className="w-5 h-5 text-indigo-400/50 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  !isSearching && (
+                    <div className="p-8 text-center text-white/40 flex flex-col items-center">
+                      <UserX className="w-8 h-8 mb-2 opacity-50" />
+                      <p className="text-sm">No user found with this username.</p>
+                    </div>
+                  )
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+
+        {/* Conversations List */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 shadow-2xl"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-white/90 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              Your Conversations
+            </h2>
           </div>
-        ) : (
-          <div className="conversationList">
-            {conversations.map((conversation) => (
-              <Link key={conversation.id} href={`/chat/${conversation.id}`} className="conversation">
-                <span className="conversationIcon">💬</span>
-                <span>
-                  <strong>Open conversation</strong>
-                  <small>Started {new Date(conversation.created_at).toLocaleDateString()}</small>
-                </span>
-                <b>→</b>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
 
+          {conversations.length === 0 ? (
+            <div className="py-12 px-6 border border-dashed border-white/10 rounded-2xl text-center flex flex-col items-center">
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 text-purple-400">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <h3 className="text-white/90 font-semibold mb-1">No conversations yet</h3>
+              <p className="text-white/40 text-sm">Find someone by username and send the first message.</p>
+            </div>
+          ) : (
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid gap-3">
+              {conversations.map((conversation) => (
+                <motion.div key={conversation.id} variants={itemVariants}>
+                  <Link 
+                    href={`/chat/${conversation.id}`} 
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all duration-300 group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/20 group-hover:scale-105 transition-transform">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-white/90 group-hover:text-white">Open Conversation</h4>
+                      <p className="text-xs text-white/40 flex items-center gap-1.5 mt-1">
+                        <Clock className="w-3 h-3" />
+                        Started {new Date(conversation.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-white/30 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </motion.section>
+
+      </div>
+
+      {/* Global Aurora Background */}
       <style jsx>{`
-        .page { min-height: 100vh; padding-bottom: 60px; background: #05050f; color: #fff; overflow: hidden; }
-        .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(circle at 14% 12%, rgba(79,70,229,.34), transparent 33%), radial-gradient(circle at 88% 75%, rgba(168,85,247,.28), transparent 34%), #05050f; }
-        .header, .hero, .panel, .conversations { position: relative; z-index: 1; }
-        .header { width: min(1080px, calc(100% - 32px)); margin: auto; padding: 22px 0; display: flex; align-items: center; justify-content: space-between; }
-        .brand { color: #fff; font-size: 20px; font-weight: 800; text-decoration: none; }
-        .rightHeader { display: flex; gap: 14px; align-items: center; }
-        .welcome { color: rgba(255,255,255,.65); font-size: 14px; }
-        .logout { border: 1px solid rgba(255,255,255,.13); background: rgba(255,255,255,.06); color: #fff; padding: 9px 14px; border-radius: 10px; cursor: pointer; }
-        .logout:hover { background: rgba(255,255,255,.12); }
-        .hero { width: min(760px, calc(100% - 32px)); margin: 54px auto 28px; text-align: center; }
-        .status { display: inline-flex; gap: 8px; align-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 13px; background: rgba(255,255,255,.05); color: #a5b4fc; font-size: 13px; }
-        .status i { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px #4ade80; }
-        h1 { margin: 18px 0 13px; font-size: clamp(38px, 7vw, 68px); line-height: 1.05; letter-spacing: -2px; }
-        h1 span { color: #a78bfa; text-shadow: 0 0 30px rgba(167,139,250,.6); }
-        .hero p { color: rgba(255,255,255,.6); margin: 0; font-size: 16px; }
-        .panel, .conversations { width: min(690px, calc(100% - 32px)); margin: 26px auto; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.045); backdrop-filter: blur(18px); padding: 22px; }
-        label { display: block; margin-bottom: 10px; color: #e0e7ff; font-size: 14px; font-weight: 700; }
-        .searchBox { display: flex; gap: 10px; align-items: center; padding: 0 14px; background: rgba(0,0,0,.24); border: 1px solid rgba(255,255,255,.12); border-radius: 13px; }
-        .searchBox span { color: #a5b4fc; font-size: 25px; line-height: 1; }
-        input { width: 100%; padding: 14px 0; outline: none; border: 0; background: transparent; color: #fff; font-size: 15px; }
-        input::placeholder { color: rgba(255,255,255,.4); }
-        .searchBox:focus-within { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,.16); }
-        .searchResults { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 14px; }
-        .user { width: 100%; display: flex; align-items: center; gap: 12px; border: 0; border-bottom: 1px solid rgba(255,255,255,.07); background: transparent; color: #fff; padding: 13px; cursor: pointer; text-align: left; }
-        .user:last-child { border-bottom: 0; }
-        .user:hover { background: rgba(129,140,248,.13); }
-        .avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #a855f7); font-weight: 800; }
-        .userInfo { display: grid; gap: 4px; }
-        .userInfo small { color: rgba(255,255,255,.48); font-size: 12px; }
-        .onlineDot, .offlineDot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #6b7280; }
-        .onlineDot { background: #4ade80; }
-        .start { margin-left: auto; color: #c4b5fd; font-weight: 700; font-size: 13px; }
-        .message, .empty { color: #fda4af; font-size: 13px; margin: 12px 0 0; }
-        .empty { color: rgba(255,255,255,.48); padding: 14px; }
-        .sectionTitle { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-        h2 { margin: 0; font-size: 18px; }
-        .sectionTitle a { color: #a5b4fc; text-decoration: none; font-size: 13px; }
-        .emptyCard { margin-top: 18px; padding: 34px 18px; border: 1px dashed rgba(255,255,255,.14); border-radius: 15px; text-align: center; color: rgba(255,255,255,.55); }
-        .emptyCard div { font-size: 28px; color: #a78bfa; }
-        .emptyCard h3 { color: #fff; margin: 10px 0 6px; font-size: 16px; }
-        .emptyCard p { margin: 0; font-size: 13px; }
-        .conversationList { display: grid; gap: 9px; margin-top: 18px; }
-        .conversation { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; padding: 13px; border-radius: 14px; background: rgba(255,255,255,.05); }
-        .conversation:hover { background: rgba(255,255,255,.1); }
-        .conversationIcon { font-size: 23px; }
-        .conversation span:nth-child(2) { display: grid; gap: 3px; }
-        .conversation small { color: rgba(255,255,255,.45); font-size: 12px; }
-        .conversation b { margin-left: auto; color: #c4b5fd; }
-        @media (max-width: 560px) { .welcome { display: none; } .hero { margin-top: 32px; } .panel, .conversations { padding: 16px; } h1 { letter-spacing: -1.3px; } }
+        .aurora-bg {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          overflow: hidden;
+          pointer-events: none;
+        }
+        .aurora-bg::before,
+        .aurora-bg::after {
+          content: '';
+          position: absolute;
+          width: 60vw;
+          height: 60vw;
+          border-radius: 50%;
+          filter: blur(140px);
+          opacity: 0.25;
+          animation: float 20s ease-in-out infinite;
+        }
+        .aurora-bg::before {
+          background: radial-gradient(circle, rgba(99,102,241,0.8), transparent 70%);
+          top: -20%;
+          left: -10%;
+        }
+        .aurora-bg::after {
+          background: radial-gradient(circle, rgba(168,85,247,0.8), transparent 70%);
+          bottom: -20%;
+          right: -10%;
+          animation-delay: -10s;
+          animation-direction: reverse;
+        }
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(5%, 10%) scale(1.1); }
+          66% { transform: translate(-5%, 5%) scale(0.9); }
+        }
       `}</style>
     </main>
   );
