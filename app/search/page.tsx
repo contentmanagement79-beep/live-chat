@@ -53,42 +53,34 @@ export default function SearchPage() {
     return () => clearTimeout(timeout);
   }, [query, currentUserId]);
 
-  const startConversation = async (otherUserId: string) => {
+const startConversation = async (otherUserId: string) => {
     if (!currentUserId) return;
-    setStartingChatId(otherUserId); // লোডিং শুরু
+    
+    // UI-তে বাটনের লোডিং স্পিনার শুরু করার জন্য
+    setStartingChatId(otherUserId); 
 
-    const { data: myConvos } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', currentUserId);
+    try {
+      // 🚀 ম্যাজিক এখানে! ফ্রন্টএন্ডের বদলে ডেটাবেস নিজেই সব চেক করে আইডি দিয়ে দিবে
+      const { data: conversationId, error } = await supabase.rpc(
+        'get_or_create_direct_conversation',
+        { target_user_id: otherUserId }
+      );
 
-    const myConvoIds = (myConvos ?? []).map((c) => c.conversation_id);
+      if (error) {
+        console.error('Error starting chat:', error.message);
+        setStartingChatId(null);
+        return;
+      }
 
-    let existingId: string | null = null;
-    if (myConvoIds.length > 0) {
-      const { data: shared } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', otherUserId)
-        .in('conversation_id', myConvoIds);
-      if (shared && shared.length > 0) existingId = shared[0].conversation_id;
-    }
-
-    if (existingId) {
-      router.push(`/chat/${existingId}`);
-      return;
-    }
-
-    const { data: newConvo, error } = await supabase
-      .from('conversations')
-      .insert({ is_group: false })
-      .select()
-      .single();
-
-    if (error || !newConvo) {
+      if (conversationId) {
+        // চ্যাট আইডি পেয়ে গেলে সোজা চ্যাট পেজে রিডাইরেক্ট
+        router.push(`/chat/${conversationId}`);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
       setStartingChatId(null);
-      return;
     }
+  };
 
     await supabase.from('conversation_participants').insert([
       { conversation_id: newConvo.id, user_id: currentUserId },
