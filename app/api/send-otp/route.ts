@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     // ২. Resend এর মাধ্যমে ইমেইল পাঠানো
     const { error } = await resend.emails.send({
-      from: 'NovaChat <onboarding@resend.dev>', // Resend-এর ডিফল্ট টেস্টিং ইমেইল
+      from: 'NovaChat <noreply@linkys.2bd.net>', // Resend-এর ডিফল্ট টেস্টিং ইমেইল
       to: email,
       subject: 'Verification Code - NovaChat',
       html: `
