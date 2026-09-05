@@ -83,8 +83,8 @@ export default function SignupPage() {
       return;
     }
 
-    // ৩. সোজা চ্যাট ড্যাশবোর্ডে রিডাইরেক্ট করা
-    router.push('/');
+      // ৩. আপনার দেওয়া লিংকে সরাসরি রিডাইরেক্ট করা
+    window.location.href = 'https://live-chats-assetprim.vercel.app/chat';
   };
 
   // 6-Box OTP লজিক হ্যান্ডলার
